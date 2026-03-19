@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
 
 class SupabaseService {
 
@@ -15,6 +16,7 @@ class SupabaseService {
     required String category,
     required String time,
     String? date,
+    String? fileUrl,
   }) async {
 
     await supabase.from('tasks').insert({
@@ -23,8 +25,21 @@ class SupabaseService {
       'category': category,
       'time': time,
       'date': date,
+      'file_url': fileUrl,
     });
 
+  }
+
+  Future<String?> uploadFile(String fileName, String filePath) async {
+    try {
+      final path = 'task_files/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      final file = File(filePath);
+      await supabase.storage.from('task_files').upload(path, file);
+      return supabase.storage.from('task_files').getPublicUrl(path);
+    } catch (e) {
+      print("Error uploading file: $e");
+      return null;
+    }
   }
 
   Future<void> toggleTask(String id, bool value) async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/supabase_service.dart';
 
 class AddTaskScreen extends StatefulWidget {
@@ -17,10 +18,20 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   String category = "Healthy";
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = TimeOfDay.now();
+  PlatformFile? pickedFile;
 
   final categories = ["Healthy", "Design", "Job", "Education", "Sport", "More"];
 
   bool isSaving = false;
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        pickedFile = result.files.first;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,10 +79,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 const SizedBox(height: 16),
                 _buildSelectionButton(
                   icon: Icons.add_box_outlined,
-                  label: "Additional Files",
-                  onTap: () {
-                    // Not implemented in this demo
-                  },
+                  label: pickedFile != null ? "File: ${pickedFile!.name}" : "Additional Files",
+                  onTap: _pickFile,
                 ),
                 const SizedBox(height: 32),
                 const Text(
@@ -130,6 +139,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       setState(() => isSaving = true);
 
                       try {
+                        // Upload file if exists
+                        String? fileUrl;
+                        if (pickedFile != null && pickedFile!.path != null) {
+                          fileUrl = await service.uploadFile(pickedFile!.name, pickedFile!.path!);
+                        }
+
                         // Format time like "8 A.M"
                         final hour = selectedTime.hourOfPeriod == 0 ? 12 : selectedTime.hourOfPeriod;
                         final period = selectedTime.period == DayPeriod.am ? "A.M" : "P.M";
@@ -141,6 +156,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                           category: category,
                           time: timeStr,
                           date: DateFormat('yyyy-MM-dd').format(selectedDate),
+                          fileUrl: fileUrl,
                         );
 
                         if (mounted) {

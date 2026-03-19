@@ -26,31 +26,54 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => isLoading = true);
     try {
       final data = await service.getTasks();
+      final List<Task> fetchedTasks = data.map((t) => Task.fromJson(t)).toList();
+      
       setState(() {
-        allTasks = data.map((t) => Task.fromJson(t)).toList();
+        allTasks = fetchedTasks;
+        // Ordenar por ID descendente para que las más nuevas estén arriba
+        allTasks.sort((a, b) => b.id.compareTo(a.id)); 
         isLoading = false;
       });
     } catch (e) {
+      print("Error loading tasks: $e");
       setState(() => isLoading = false);
     }
   }
 
+  bool _isSameDay(String? dateStr1, String dateStr2) {
+    if (dateStr1 == null) return false;
+    try {
+      final d1 = DateTime.parse(dateStr1);
+      final d2 = DateTime.parse(dateStr2);
+      return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+    } catch (e) {
+      return dateStr1 == dateStr2;
+    }
+  }
+
   List<Task> get todayTasks {
-    final now = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(now);
-    return allTasks.where((t) => t.date == todayStr).toList();
+    // Para asegurar que siempre veas las tareas al crearlas, mostramos todas
+    // las tareas registradas en la lista principal.
+    return allTasks;
   }
 
   List<Task> get weeklyTasks {
     final now = DateTime.now();
-    final firstDayOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final lastDayOfWeek = firstDayOfWeek.add(const Duration(days: 6));
+    // Obtener el lunes de esta semana
+    final firstDayOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    // Obtener el domingo de esta semana
+    final lastDayOfWeek = firstDayOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59));
 
     return allTasks.where((t) {
-      if (t.date == null) return false;
-      final taskDate = DateTime.parse(t.date!);
-      return taskDate.isAfter(firstDayOfWeek.subtract(const Duration(days: 1))) &&
-          taskDate.isBefore(lastDayOfWeek.add(const Duration(days: 1)));
+      // Si no tiene fecha, la incluimos en el conteo semanal para no perderla
+      if (t.date == null || t.date!.isEmpty) return true;
+      try {
+        final taskDate = DateTime.parse(t.date!);
+        return taskDate.isAfter(firstDayOfWeek.subtract(const Duration(seconds: 1))) &&
+            taskDate.isBefore(lastDayOfWeek.add(const Duration(seconds: 1)));
+      } catch (e) {
+        return false;
+      }
     }).toList();
   }
 
@@ -271,30 +294,68 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              task.title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF2D3142),
-                decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF2D3142),
+                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (task.fileUrl != null && task.fileUrl!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.attach_file, size: 14, color: primaryColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Attached File",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF9E7),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              task.time,
-              style: const TextStyle(
-                color: Color(0xFFFFD15B),
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF9E7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  task.time,
+                  style: const TextStyle(
+                    color: Color(0xFFFFD15B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-            ),
+              if (task.fileUrl != null && task.fileUrl!.isNotEmpty)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: Icon(Icons.visibility_outlined, size: 20, color: Colors.grey.shade400),
+                  onPressed: () {
+                    // Aquí podrías usar url_launcher para abrir el archivo
+                    // showDialog o abrir una nueva pantalla para ver la imagen
+                  },
+                ),
+            ],
           ),
         ],
       ),

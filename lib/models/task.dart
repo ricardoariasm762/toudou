@@ -6,6 +6,7 @@ class Task {
   final String category;
   final String time;
   final String? date;
+  final String? fileUrl;
 
   Task({
     required this.id,
@@ -15,6 +16,7 @@ class Task {
     required this.category,
     required this.time,
     this.date,
+    this.fileUrl,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class Task {
       category: json['category'] ?? 'General',
       time: json['time'] ?? '8 A.M',
       date: json['date'],
+      fileUrl: json['file_url'],
     );
   }
 }
